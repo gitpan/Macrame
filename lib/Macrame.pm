@@ -11,11 +11,18 @@ use strict;
 use warnings;
 sub DEBUG(){0};
 use Carp;
-our $VERSION = '0.08';
+our $VERSION = '0.09';
 =head1 VERSION
 
-This document describes version 0.08 of Macrame, released
-November 29, 2007.
+This document describes version 0.09 of Macrame, released
+April 24, 2009.  Both of Slaven Rezic's reported bugs have been addressed.
+
+The next step towards getting Macrame to be everything it could become
+appears to be fixing Filter::Simple, by either fixing Filter::Simple so
+it works better, or by replacing it entirely with a more complex tokenizer,
+perhaps L<Filter::PPI>.
+
+
 
 =head1 SYNOPSIS
 
@@ -99,7 +106,7 @@ in the test file are more certain to work.
 =cut
 
 our @Definitions = ();
-our $FINAL - 0;
+our $FINAL = 0; # CPAN bug #31200
 
 =head1 @Macrame::Definitions array
 
@@ -645,7 +652,7 @@ sub reset_Definitions() {
 		DEBUG and warn
 		"REACHED NOMACROS with arg ".$start->Stringify;
 
-	    	my $nmcounter if 0;
+	    	our $nmcounter;
 	    	$nmcounter++ > 5 and Carp::confess;
 
                 # reset @M::D
@@ -879,12 +886,12 @@ sub treeify($) {
 my %bracketmatch = qw/ { } [ ] ( ) ) ( } { ] [ /;
 our $SIGILARG = 0;
 
-sub treeify2($) {
+{    my ( $line, $file );
+ sub treeify2($) {
     defined( my $source = $_[0] ) or return undef;
     0 and DEBUG and print STDERR join '|', @$source;
     0 and DEBUG and print STDERR "\n";
     my $text = shift @$source;
-    my ( $line, $file ) if 0;
   linenumber_check:
     defined $text or return undef;
     if ( $text eq '__Macrame_LINE' ) {
@@ -996,7 +1003,8 @@ sub treeify2($) {
     $previous = $this;
     $this->next = &treeify2;
     bless $this, 'Macrame::lexeme::nonword';
-}
+ }
+} # lexical scope surrounding treeify2
 
 
 
@@ -1225,10 +1233,10 @@ sub Stringify {
     my $prev ;
     my @pieces;
     while ( defined $start ) {
-	defined $prev and
-	   $prev->wordp and
-	      $start->wordp and
-	         	push @pieces, ' ';
+	(
+          (defined $prev and $prev->wordp and $start->wordp) 
+        or  $start->quotep  # should take care of CPAN bug #31201
+        ) and push @pieces, ' ';
 
         push @pieces, $start->string;  # openers do their thing
 # warn "after $start have: @pieces";
